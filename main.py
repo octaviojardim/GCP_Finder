@@ -11,22 +11,27 @@ from PIL import Image, ImageDraw
 from pygeodesy.sphericalNvector import LatLon
 
 # CONSTANTES
-lista_de_GCP_fixos = [(41.399764282, -6.979935297), (41.399996133, -6.979810770),
-                      (41.400472774, -6.978607702), (41.401094352, -6.978028510),
-                      (41.401920542, -6.977328670), (41.401278867, -6.977253966),
-                      (41.401057414, -6.977439044), (41.400692559, -6.977741638),
-                      (41.400789673, -6.977080969), (41.400610843, -6.977379693),
-                      (41.400532910, -6.977257272)]
+lista_de_GCP_fixos = {
+    0: (41.399764282, -6.979935297, 745),
+    1: (41.399996133, -6.979810770, 756),
+    2: (89.393838443, -6.45644789, 745)}
+
+print(lista_de_GCP_fixos[2][0])
 
 found = "Ponto de Controle encontrado"
 not_found = "Ponto de Controle NÃO encontrado"
 source_path = "/Users/octaviojardim/Desktop/source" + "/"
 save_path = "/Users/octaviojardim/Desktop/images_selected" + "/"
-images_names_with_gcp = []
+keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
+            "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF:GPSLatitudeRef",
+            "EXIF:GPSLongitudeRef", "XMP:GimbalPitchDegree"]
+output_lines = []
+images_with_gcp = []
 image_list = []
 img_with_gcp = 0
 BORDER = 20  # search gcp in (1-BORDER)% of the image, remove BORDER% border around the image
 save_images = False
+GCP_LIST = "/Users/octaviojardim/Desktop/gcp_list.txt"
 
 
 def get_border_scale(border):
@@ -128,7 +133,7 @@ def show_info():
 
 # recebe as coordenadas gps do ponto focal da imagem e a imagem em questão
 def is_gcp_nearby(centerCoord, img):
-    global img_with_gcp
+    global img_with_gcp, lista_de_GCP_fixos
 
     top_right, bottom_right, bottom_left, top_left = get_corner_coodinates(centerCoord[0], centerCoord[1])
 
@@ -136,13 +141,15 @@ def is_gcp_nearby(centerCoord, img):
     # assuming list GCP already in DD format
     for gcp in lista_de_GCP_fixos:
 
-        p = LatLon(gcp[0], gcp[1])
+        p = LatLon(lista_de_GCP_fixos[gcp][0], lista_de_GCP_fixos[gcp][1])
         b = LatLon(top_right.latitude, top_right.longitude), LatLon(bottom_right.latitude, bottom_right.longitude), \
             LatLon(bottom_left.latitude, bottom_left.longitude), LatLon(top_left.latitude, top_left.longitude)
 
         if p.isenclosedBy(b):
             find = True
             img_with_gcp = img_with_gcp + 1
+            images_with_gcp.append(img["SourceFile"])
+
             if save_images:
                 # guardar imagem numa pasta à parte
                 imm = Image.open(img["SourceFile"])
@@ -157,7 +164,8 @@ def is_gcp_nearby(centerCoord, img):
 
 
 def get_image_data(meta):
-    global pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude
+    global keywords, pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude
+
     pitch_angle = abs(82)  # meta["MakerNotes:CameraPitch"]  has to be greater than 0 -------------------------------
     image_width = meta["File:ImageWidth"]
     image_height = meta["File:ImageHeight"]
@@ -173,10 +181,6 @@ for filename in glob.glob(source_path + '*'):
     image_list.append(filename)
 
 total_images = len(image_list)
-
-keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
-            "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF:GPSLatitudeRef",
-            "EXIF:GPSLongitudeRef", "XMP:GimbalPitchDegree"]
 
 with exiftool.ExifTool() as et:
     metadata = et.get_tags_batch(keywords, image_list)
@@ -221,14 +225,18 @@ print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2
 
 def aruco_detect():
     marker_found = 0
-    number_of_images = 0
-    for file_name in glob.glob(source_path + '*'):
-        image_list.append(file_name)
+    vec = []
 
-        number_of_images = len(image_list)
+    with exiftool.ExifTool() as met:
+        meta = met.get_tags_batch(keywords, images_with_gcp)
+
+    number_of_images = len(meta)
+    print("Number of images with gcp:", number_of_images)
     for k in range(0, number_of_images):
-        frame = cv2.imread(image_list[k])
+        image_meta = meta[k]
+        image_filename = image_meta["SourceFile"]
 
+        frame = cv2.imread(image_filename)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Dictionary with 16 bits markers and ids from 0 to 49
@@ -238,6 +246,11 @@ def aruco_detect():
         if ids is not None:
             print("Marker found!")
             marker_found = marker_found + 1
+            for j in range(len(ids)):
+                c = corners[j][0]
+                pixels = [c[:, 0].mean()], [c[:, 1].mean()]
+                vec.append(pixels)
+            addLine(vec, image_filename, ids)
         else:
             print("Marker not found in image", image_list[k])
     print("Found", marker_found, "of", total_images, "markers")
@@ -268,3 +281,30 @@ def aruco_detect_and_draw():
 
 # aruco_detect()
 aruco_detect_and_draw()
+
+
+def get_gcp_info(id__):
+    return lista_de_GCP_fixos[id__]
+
+
+def addLine(pixels, filename_, gcp_ids):
+    # latitude, longitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
+    im = os.path.split(filename_)
+    img_name, img_extension = im[-1].split('.')
+
+    for m in gcp_ids:
+        gcp_lat, gcp_long, gcp_alt = get_gcp_info(m)
+        line = str(gcp_lat) + str(gcp_long) + str(gcp_alt) + str(pixels[m][0]) + \
+               str(pixels[m][1]) + img_name + str(m) + "\n"
+        output_lines.append(line)
+
+
+def generate_gcp_file():
+    header = "WGS84\n"
+
+    if len(output_lines) < 1:
+        sys.exit("Didn't find any markers.")
+
+    f = open(GCP_LIST, 'w+')
+    f.write(header)
+    f.writelines(output_lines)
