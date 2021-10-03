@@ -13,10 +13,8 @@ from pygeodesy.sphericalNvector import LatLon
 # CONSTANTES
 lista_de_GCP_fixos = {
     0: (41.399764282, -6.979935297, 745),
-    1: (41.399996133, -6.979810770, 756),
-    2: (89.393838443, -6.45644789, 745)}
-
-print(lista_de_GCP_fixos[2][0])
+    1: (41.399996133, -6.979810771, 756),
+    13: (89.393838443, -6.456447899, 745)}
 
 found = "Ponto de Controle encontrado"
 not_found = "Ponto de Controle NÃO encontrado"
@@ -26,7 +24,7 @@ keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:Relat
             "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF:GPSLatitudeRef",
             "EXIF:GPSLongitudeRef", "XMP:GimbalPitchDegree"]
 output_lines = []
-images_with_gcp = []
+images_with_gcp = ["/Users/octaviojardim/Desktop/imagem_teste.png"]
 image_list = []
 img_with_gcp = 0
 BORDER = 20  # search gcp in (1-BORDER)% of the image, remove BORDER% border around the image
@@ -223,6 +221,27 @@ coords_2 = (32.651919280258994, -16.941869478180877)
 print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
 
 
+def get_gcp_info(id__):
+    return lista_de_GCP_fixos[id__]
+
+
+def addLine(pixels, filename_, gcp_ids):
+    im = os.path.split(filename_)
+    img_name, img_extension = im[-1].split('.')
+    s = 0
+    for m in gcp_ids:
+        print("gcp_ids", gcp_ids)
+        print("m", m)
+        print("n", m[0])
+        n = m[0]
+        gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
+        # latitude, longitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
+        line = str(gcp_lat) + " " + str(gcp_long) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
+               " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
+        output_lines.append(line)
+        s = s + 1
+
+
 def aruco_detect():
     marker_found = 0
     vec = []
@@ -279,24 +298,10 @@ def aruco_detect_and_draw():
         print("Marker not found..")
 
 
-# aruco_detect()
-aruco_detect_and_draw()
+aruco_detect()
 
 
-def get_gcp_info(id__):
-    return lista_de_GCP_fixos[id__]
-
-
-def addLine(pixels, filename_, gcp_ids):
-    # latitude, longitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-    im = os.path.split(filename_)
-    img_name, img_extension = im[-1].split('.')
-
-    for m in gcp_ids:
-        gcp_lat, gcp_long, gcp_alt = get_gcp_info(m)
-        line = str(gcp_lat) + str(gcp_long) + str(gcp_alt) + str(pixels[m][0]) + \
-               str(pixels[m][1]) + img_name + str(m) + "\n"
-        output_lines.append(line)
+# aruco_detect_and_draw()
 
 
 def generate_gcp_file():
@@ -308,3 +313,6 @@ def generate_gcp_file():
     f = open(GCP_LIST, 'w+')
     f.write(header)
     f.writelines(output_lines)
+
+
+generate_gcp_file()
