@@ -29,7 +29,6 @@ image_list = []
 img_with_gcp = 0
 BORDER = 20  # search gcp in (1-BORDER)% of the image, remove BORDER% border around the image
 save_images = False
-GCP_LIST = "/Users/octaviojardim/Desktop/gcp_list.txt"
 
 
 def get_border_scale(border):
@@ -309,8 +308,9 @@ def generate_gcp_file():
 
     if len(output_lines) < 1:
         sys.exit("Didn't find any markers.")
-
-    f = open(GCP_LIST, 'w+')
+    # in unix systems
+    gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
+    f = open(gcp_file_location, 'w+')
     f.write(header)
     f.writelines(output_lines)
 
