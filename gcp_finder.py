@@ -3,9 +3,9 @@ import cv2
 import sys
 import math
 import glob
+import shutil
 import exiftool
 import geopy.distance
-import matplotlib.pyplot as plt
 from cv2 import aruco
 from PIL import Image, ImageDraw
 from pygeodesy.sphericalNvector import LatLon
@@ -28,7 +28,7 @@ images_with_gcp = ["/Users/octaviojardim/Desktop/imagem_teste.png"]
 image_list = []
 img_with_gcp = 0
 BORDER = 20  # search gcp in (1-BORDER)% of the image, remove BORDER% border around the image
-save_images = False
+save_images = True
 
 
 def get_border_scale(border):
@@ -134,6 +134,7 @@ def is_gcp_nearby(centerCoord, img):
 
     top_right, bottom_right, bottom_left, top_left = get_corner_coodinates(centerCoord[0], centerCoord[1])
 
+    image_path = img["SourceFile"]
     find = False
     # assuming list GCP already in DD format
     for gcp in lista_de_GCP_fixos:
@@ -145,14 +146,13 @@ def is_gcp_nearby(centerCoord, img):
         if p.isenclosedBy(b):
             find = True
             img_with_gcp = img_with_gcp + 1
-            images_with_gcp.append(img["SourceFile"])
+            images_with_gcp.append(image_path)
 
             if save_images:
                 # guardar imagem numa pasta à parte
-                imm = Image.open(img["SourceFile"])
-                img_ = os.path.split(img["SourceFile"])
+                img_ = os.path.split(image_path)
                 img_name, img_extension = img_[-1].split('.')
-                imm.save(save_path + img_name + "." + img_extension)
+                shutil.copy(image_path, save_path + img_name + "." + img_extension)
 
     if find:
         return found
@@ -212,13 +212,6 @@ for i in range(0, len(image_list)):
         print(is_gcp_nearby((lat2, lon2), current_image))
         print()
 
-print("Numero de imagens com um ponto de controlo: ", img_with_gcp, "/", total_images)
-
-coords_1 = (32.651917, -16.941869)
-coords_2 = (32.651919280258994, -16.941869478180877)
-
-print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
-
 
 def get_gcp_info(id__):
     return lista_de_GCP_fixos[id__]
@@ -229,9 +222,6 @@ def addLine(pixels, filename_, gcp_ids):
     img_name, img_extension = im[-1].split('.')
     s = 0
     for m in gcp_ids:
-        print("gcp_ids", gcp_ids)
-        print("m", m)
-        print("n", m[0])
         n = m[0]
         gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
         # latitude, longitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
@@ -248,7 +238,7 @@ def aruco_detect():
     with exiftool.ExifTool() as met:
         meta = met.get_tags_batch(keywords, images_with_gcp)
 
-    number_of_images = len(meta)
+    number_of_images = len(images_with_gcp)
     print("Number of images with gcp:", number_of_images)
     for k in range(0, number_of_images):
         image_meta = meta[k]
@@ -271,36 +261,7 @@ def aruco_detect():
             addLine(vec, image_filename, ids)
         else:
             print("Marker not found in image", image_list[k])
-    print("Found", marker_found, "of", total_images, "markers")
-
-
-def aruco_detect_and_draw():
-    frame = cv2.imread("/Users/octaviojardim/Desktop/aruco_drone_images/DJI_0933.JPG")
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
-    parameters = aruco.DetectorParameters_create()
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-    frame_markers = aruco.drawDetectedMarkers(frame.copy(), corners, ids)
-    plt.figure()
-    plt.imshow(frame_markers)
-    if ids is not None:
-        print("Marker found!")
-        for j in range(len(ids)):
-            c = corners[j][0]
-            plt.plot([c[:, 0].mean()], [c[:, 1].mean()], "x", label="id={0}".format(ids[j]))
-        plt.legend()
-        plt.show()
-        # plt.savefig("/Users/octaviojardim/Desktop/test.JPG")
-    else:
-        print("Marker not found..")
-
-
-aruco_detect()
-
-
-# aruco_detect_and_draw()
+            print("Found", marker_found, "of", total_images, "markers")
 
 
 def generate_gcp_file():
@@ -315,4 +276,12 @@ def generate_gcp_file():
     f.writelines(output_lines)
 
 
+print("Numero de imagens com um ponto de controlo: ", img_with_gcp, "/", total_images)
+
+coords_1 = (32.651917, -16.941869)
+coords_2 = (32.651919280258994, -16.941869478180877)
+
+print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
+
+aruco_detect()
 generate_gcp_file()
