@@ -224,8 +224,8 @@ def addLine(pixels, filename_, gcp_ids):
     for m in gcp_ids:
         n = m[0]
         gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
-        # latitude, longitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-        line = str(gcp_lat) + " " + str(gcp_long) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
+        # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
+        line = str(gcp_long) + " " + str(gcp_lat) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
                " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
         output_lines.append(line)
         s = s + 1
