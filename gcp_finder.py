@@ -11,10 +11,7 @@ from PIL import Image, ImageDraw
 from pygeodesy.sphericalNvector import LatLon
 
 # CONSTANTES
-lista_de_GCP_fixos = {
-    0: (41.399764282, -6.979935297, 745),
-    1: (41.399996133, -6.979810771, 756),
-    13: (89.393838443, -6.456447899, 745)}
+lista_de_GCP_fixos = {}
 
 found = "Ponto de Controle encontrado"
 not_found = "Ponto de Controle NÃO encontrado"
@@ -22,25 +19,46 @@ source_path = "/Users/octaviojardim/Desktop/source" + "/"
 save_path = "/Users/octaviojardim/Desktop/images_selected" + "/"
 keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
             "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF:GPSLatitudeRef",
-            "EXIF:GPSLongitudeRef", "XMP:GimbalPitchDegree"]
+            "EXIF:GPSLongitudeRef"]
 output_lines = []
-images_with_gcp = ["/Users/octaviojardim/Desktop/imagem_teste.png"]
+images_with_gcp = []
 image_list = []
 img_with_gcp = 0
-BORDER = 20  # search gcp in (1-BORDER)% of the image, remove BORDER% border around the image
-save_images = True
+border = 20  # search gcp in (1-border)% of the image, remove border% border around the image
+save_images = -1
+SENSOR_WIDTH = 0
+total_images = 0
+pitch_angle = 0
+image_width = 0
+image_height = 0
+focal_length = 0
+horizontal_angle = 0
+altitude = 0
 
 
-def get_border_scale(border):
-    img_without_border = abs((border / 100) - 1)
+def read_gcp_file():
+    f = open("/Users/octaviojardim/Desktop/teste_upload_coord.txt", 'r')
+    next(f)
+    for ln in f:
+        line = ln.split()
+        lista_de_GCP_fixos[int(line[0])] = (float(line[1]), float(line[2]), float(line[3]))
+
+
+def get_border_scale(b):
+    if type(b) not in [int, float]:
+        raise TypeError("The border percentage has to be an int or float")
+    if b <= 0:
+        raise TypeError("The border percentage has to be positive")
+    img_without_border = abs((b / 100) - 1)
     scale_raw = math.sqrt(img_without_border)
     scale = (abs(scale_raw - 1)) / 2
     return scale
 
 
 def get_distance_to_corners():
-    global BORDER
-    border_estimated = get_border_scale(BORDER)
+    global border
+
+    border_estimated = get_border_scale(border)
 
     ground_sample_distance = (altitude * SENSOR_WIDTH) / (focal_length * image_width)  # m/pixel
 
@@ -52,13 +70,13 @@ def get_distance_to_corners():
     final_distance = dist * ground_sample_distance  # real distance in meters
 
     # DRAW TOP LEFT AND RIGHT CORNERS IN IMAGE
-    shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
-    shape2 = [image_width - (int(p[0]) - 2), int(p[1]) - 2, image_width - (int(p[0]) + 2), int(p[1]) + 2]
-    img = Image.open(image_list[0])
-    img1 = ImageDraw.Draw(img)
-    img1.rectangle(shape, fill="#ffff33", outline="red")
-    img1.rectangle(shape2, fill="#ffff33", outline="red")
-    img.show()
+    #shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
+    #shape2 = [image_width - (int(p[0]) - 2), int(p[1]) - 2, image_width - (int(p[0]) + 2), int(p[1]) + 2]
+    #img = Image.open(image_list[0])
+    #img1 = ImageDraw.Draw(img)
+    #img1.rectangle(shape, fill="#ffff33", outline="red")
+    #img1.rectangle(shape2, fill="#ffff33", outline="red")
+    #img.show()
 
     return final_distance
 
@@ -98,11 +116,11 @@ def get_drone_info(drone):
     model = drone["EXIF:Model"]
 
     if model == "FC6310":
-        return 0.0132, 0.0088
+        return 0.0132
     elif model == "FC7303":
-        return 0.0063, 0.0047
+        return 0.0063
     else:
-        return 0, 0
+        return 0
 
 
 def get_coordinates(geotags):
@@ -148,7 +166,7 @@ def is_gcp_nearby(centerCoord, img):
             img_with_gcp = img_with_gcp + 1
             images_with_gcp.append(image_path)
 
-            if save_images:
+            if save_images == 1:
                 # guardar imagem numa pasta à parte
                 img_ = os.path.split(image_path)
                 img_name, img_extension = img_[-1].split('.')
@@ -163,7 +181,7 @@ def is_gcp_nearby(centerCoord, img):
 def get_image_data(meta):
     global keywords, pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude
 
-    pitch_angle = abs(82)  # meta["MakerNotes:CameraPitch"]  has to be greater than 0 -------------------------------
+    pitch_angle = abs(meta["MakerNotes:CameraPitch"])  # pitch_angle has to be positive
     image_width = meta["File:ImageWidth"]
     image_height = meta["File:ImageHeight"]
     focal_length = meta["EXIF:FocalLength"] / 1000  # mm to m
@@ -171,46 +189,6 @@ def get_image_data(meta):
     altitude = meta["XMP:RelativeAltitude"]
 
     return pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude
-
-
-# upload all filenames
-for filename in glob.glob(source_path + '*'):
-    image_list.append(filename)
-
-total_images = len(image_list)
-
-with exiftool.ExifTool() as et:
-    metadata = et.get_tags_batch(keywords, image_list)
-
-for i in range(0, len(image_list)):
-
-    current_image = metadata[i]
-    print(current_image)
-    SENSOR_WIDTH, SENSOR_HEIGHT = get_drone_info(current_image)
-
-    if SENSOR_WIDTH == 0 or SENSOR_HEIGHT == 0:
-        sys.exit("Sensor Width or Height is 0")
-
-    lat, long = get_coordinates(current_image)
-    print("Initial coordinates:", lat, long)
-
-    pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude = get_image_data(current_image)
-
-    altitude = float(altitude[1:-1])
-
-    if pitch_angle > 0:
-        distance = altitude / math.tan(pitch_angle * math.pi / 180)
-        distance = distance / 1000  # in km
-        show_info()
-        origin = geopy.Point(lat, long)
-        destination = geopy.distance.GeodesicDistance(kilometers=distance).destination(origin, horizontal_angle)
-        lat2, lon2 = destination.latitude, destination.longitude
-        print("Final coordinates:", lat2, lon2)
-
-        # INFO:
-        print("Distancia projetada:", round(distance * 1000, 2), "m")
-        print(is_gcp_nearby((lat2, lon2), current_image))
-        print()
 
 
 def get_gcp_info(id__):
@@ -233,14 +211,20 @@ def addLine(pixels, filename_, gcp_ids):
 
 def aruco_detect():
     marker_found = 0
-    vec = []
 
-    with exiftool.ExifTool() as met:
-        meta = met.get_tags_batch(keywords, images_with_gcp)
-
+    # if there is metadata in the images, we search for gcp in the ones selected
     number_of_images = len(images_with_gcp)
-    print("Number of images with gcp:", number_of_images)
+    # if there isn't, we process every uploaded image
+    if number_of_images == 0:
+        number_of_images = len(image_list)
+        with exiftool.ExifTool() as met:
+            meta = met.get_tags_batch(keywords, image_list)
+    else:
+        with exiftool.ExifTool() as met:
+            meta = met.get_tags_batch(keywords, images_with_gcp)
+
     for k in range(0, number_of_images):
+        vec = []
         image_meta = meta[k]
         image_filename = image_meta["SourceFile"]
 
@@ -261,14 +245,15 @@ def aruco_detect():
             addLine(vec, image_filename, ids)
         else:
             print("Marker not found in image", image_list[k])
-            print("Found", marker_found, "of", total_images, "markers")
+
+    print("Found", marker_found, "of", total_images, "markers")
 
 
 def generate_gcp_file():
     header = "WGS84\n"
 
     if len(output_lines) < 1:
-        sys.exit("Didn't find any markers.")
+        sys.exit("Cannot generate GCP File because there's no markers.")
     # in unix systems
     gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
     f = open(gcp_file_location, 'w+')
@@ -276,12 +261,69 @@ def generate_gcp_file():
     f.writelines(output_lines)
 
 
-print("Numero de imagens com um ponto de controlo: ", img_with_gcp, "/", total_images)
+def run(margin, flag_save):
+    global SENSOR_WIDTH, pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, total_images, \
+        border, save_images
+
+    border = int(margin)
+    save_images = int(flag_save)
+    read_gcp_file()
+
+    # upload all filenames
+    for filename in glob.glob(source_path + '*'):
+        image_list.append(filename)
+
+    total_images = len(image_list)
+
+    with exiftool.ExifTool() as et:
+        metadata = et.get_tags_batch(keywords, image_list)
+
+    missing = False
+    lenght = len(metadata)
+    for i in range(0, lenght):
+        if len(metadata[i]) != 12:  # Its required 12 parameters to process the gcp location
+            missing = True
+
+    if not missing:
+        for i in range(0, total_images):
+
+            current_image = metadata[i]
+            print(current_image)
+            SENSOR_WIDTH = get_drone_info(current_image)
+
+            if SENSOR_WIDTH == 0:
+                sys.exit("Sensor Width is 0")
+
+            lat, long = get_coordinates(current_image)
+            print("Initial coordinates:", lat, long)
+
+            pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude = get_image_data(
+                current_image)
+
+            altitude = float(altitude[1:-1])
+
+            distance = altitude / math.tan(pitch_angle * math.pi / 180)
+            distance = distance / 1000  # m to km
+            show_info()
+            origin = geopy.Point(lat, long)
+            destination = geopy.distance.GeodesicDistance(kilometers=distance).destination(origin, horizontal_angle)
+            lat2, lon2 = destination.latitude, destination.longitude
+            print("Final coordinates:", lat2, lon2)
+
+            # INFO:
+            print("Distancia projetada:", round(distance * 1000, 2), "m")
+            print(is_gcp_nearby((lat2, lon2), current_image))
+            print()
+
+    aruco_detect()
+    generate_gcp_file()
+
+    #print("Numero de imagens com um ponto de controlo: ", img_with_gcp, "/", total_images)
+
 
 coords_1 = (32.651917, -16.941869)
 coords_2 = (32.651919280258994, -16.941869478180877)
 
-print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
+# print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
 
-aruco_detect()
-generate_gcp_file()
+run(20, -1)
