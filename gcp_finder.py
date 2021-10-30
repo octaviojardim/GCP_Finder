@@ -1,6 +1,7 @@
 import os
 import cv2
 import sys
+import time
 import math
 import glob
 import shutil
@@ -9,6 +10,7 @@ import geopy.distance
 from cv2 import aruco
 from PIL import Image, ImageDraw
 from pygeodesy.sphericalNvector import LatLon
+
 
 # CONSTANTES
 lista_de_GCP_fixos = {}
@@ -70,13 +72,13 @@ def get_distance_to_corners():
     final_distance = dist * ground_sample_distance  # real distance in meters
 
     # DRAW TOP LEFT AND RIGHT CORNERS IN IMAGE
-    #shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
-    #shape2 = [image_width - (int(p[0]) - 2), int(p[1]) - 2, image_width - (int(p[0]) + 2), int(p[1]) + 2]
-    #img = Image.open(image_list[0])
-    #img1 = ImageDraw.Draw(img)
-    #img1.rectangle(shape, fill="#ffff33", outline="red")
-    #img1.rectangle(shape2, fill="#ffff33", outline="red")
-    #img.show()
+    # shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
+    # shape2 = [image_width - (int(p[0]) - 2), int(p[1]) - 2, image_width - (int(p[0]) + 2), int(p[1]) + 2]
+    # img = Image.open(image_list[0])
+    # img1 = ImageDraw.Draw(img)
+    # img1.rectangle(shape, fill="#ffff33", outline="red")
+    # img1.rectangle(shape2, fill="#ffff33", outline="red")
+    # img.show()
 
     return final_distance
 
@@ -165,12 +167,6 @@ def is_gcp_nearby(centerCoord, img):
             find = True
             img_with_gcp = img_with_gcp + 1
             images_with_gcp.append(image_path)
-
-            if save_images == 1:
-                # guardar imagem numa pasta à parte
-                img_ = os.path.split(image_path)
-                img_name, img_extension = img_[-1].split('.')
-                shutil.copy(image_path, save_path + img_name + "." + img_extension)
 
     if find:
         return found
@@ -261,9 +257,18 @@ def generate_gcp_file():
     f.writelines(output_lines)
 
 
+def save_images_to_folder(image_path):
+    # guardar imagem numa pasta à parte
+    img_ = os.path.split(image_path)
+    img_name, img_extension = img_[-1].split('.')
+    shutil.copy(image_path, save_path + img_name + "." + img_extension)
+
+
 def run(margin, flag_save):
     global SENSOR_WIDTH, pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, total_images, \
         border, save_images
+
+    start = time.time()
 
     border = int(margin)
     save_images = int(flag_save)
@@ -315,10 +320,15 @@ def run(margin, flag_save):
             print(is_gcp_nearby((lat2, lon2), current_image))
             print()
 
-    aruco_detect()
-    generate_gcp_file()
+    if save_images == 1:
+        for i in range(0, total_images):
+            current_image = metadata[i]["SourceFile"]
+            save_images_to_folder(current_image)
 
-    #print("Numero de imagens com um ponto de controlo: ", img_with_gcp, "/", total_images)
+    aruco_detect()
+    end = time.time()
+    print("Elapsed time", round(end - start, 1), "s")
+    generate_gcp_file()
 
 
 coords_1 = (32.651917, -16.941869)
@@ -326,4 +336,4 @@ coords_2 = (32.651919280258994, -16.941869478180877)
 
 # print("GUESS ERROR", round(geopy.distance.geodesic(coords_1, coords_2).meters, 2), "m")
 
-run(20, -1)
+run(20, 1)
