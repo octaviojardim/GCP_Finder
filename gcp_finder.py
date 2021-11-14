@@ -4,13 +4,13 @@ import sys
 import time
 import math
 import glob
+import json
 import shutil
 import exiftool
 import geopy.distance
 from cv2 import aruco
 from PIL import Image, ImageDraw
 from pygeodesy.sphericalNvector import LatLon
-
 
 # CONSTANTES
 lista_de_GCP_fixos = {}
@@ -36,6 +36,14 @@ image_height = 0
 focal_length = 0
 horizontal_angle = 0
 altitude = 0
+
+
+def print_statistic(n,total):
+    gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/statistic.txt"
+    f = open(gcp_file_location, 'w+')
+    f.write("Processed" + n + "of" + total + "images.")
+    f.close()
+    return 0
 
 
 def read_gcp_file():
@@ -117,12 +125,9 @@ def get_corner_coodinates(centerLat, centerLong):
 def get_drone_info(drone):
     model = drone["EXIF:Model"]
 
-    if model == "FC6310":
-        return 0.0132
-    elif model == "FC7303":
-        return 0.0063
-    else:
-        return 0
+    f = open('Drones_DB.json')
+    data = json.load(f)
+    return data[model]
 
 
 def get_coordinates(geotags):
@@ -201,7 +206,13 @@ def addLine(pixels, filename_, gcp_ids):
         # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
         line = str(gcp_long) + " " + str(gcp_lat) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
                " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
-        output_lines.append(line)
+
+        # write to file in unix systems
+        gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
+        f = open(gcp_file_location, 'a')
+        f.write(line)
+        f.close()
+
         s = s + 1
 
 
@@ -245,16 +256,12 @@ def aruco_detect():
     print("Found", marker_found, "of", total_images, "markers")
 
 
-def generate_gcp_file():
+def write_gcp_file_header():
     header = "WGS84\n"
-
-    if len(output_lines) < 1:
-        sys.exit("Cannot generate GCP File because there's no markers.")
-    # in unix systems
     gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
     f = open(gcp_file_location, 'w+')
     f.write(header)
-    f.writelines(output_lines)
+    f.close()
 
 
 def save_images_to_folder(image_path):
@@ -325,10 +332,10 @@ def run(margin, flag_save):
             current_image = metadata[i]["SourceFile"]
             save_images_to_folder(current_image)
 
+    write_gcp_file_header()
     aruco_detect()
     end = time.time()
     print("Elapsed time", round(end - start, 1), "s")
-    generate_gcp_file()
 
 
 coords_1 = (32.651917, -16.941869)
