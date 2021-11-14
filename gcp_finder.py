@@ -38,12 +38,22 @@ horizontal_angle = 0
 altitude = 0
 
 
-def print_statistic(n,total):
-    gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/statistic.txt"
-    f = open(gcp_file_location, 'w+')
-    f.write("Processed" + n + "of" + total + "images.")
+def save_statistic(n, stage):
+    f = open('statistic.json', "r")
+    data = json.load(f)
     f.close()
-    return 0
+
+    if stage == "meta":
+        data["Processed"] = n
+        data["Total"] = total_images
+
+    elif stage == "aruco":
+        data["Processed_aruco"] = n
+        data["Total_aruco"] = total_images
+
+    f = open('statistic.json', "w")
+    json.dump(data, f)
+    f.close()
 
 
 def read_gcp_file():
@@ -125,8 +135,9 @@ def get_corner_coodinates(centerLat, centerLong):
 def get_drone_info(drone):
     model = drone["EXIF:Model"]
 
-    f = open('Drones_DB.json')
+    f = open('drones_DB.json')
     data = json.load(f)
+
     return data[model]
 
 
@@ -252,6 +263,7 @@ def aruco_detect():
             addLine(vec, image_filename, ids)
         else:
             print("Marker not found in image", image_list[k])
+        save_statistic(k, "aruco")
 
     print("Found", marker_found, "of", total_images, "markers")
 
@@ -326,6 +338,7 @@ def run(margin, flag_save):
             print("Distancia projetada:", round(distance * 1000, 2), "m")
             print(is_gcp_nearby((lat2, lon2), current_image))
             print()
+            save_statistic(i, "meta")
 
     if save_images == 1:
         for i in range(0, total_images):
