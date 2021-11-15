@@ -215,7 +215,7 @@ def addLine(pixels, filename_, gcp_ids):
         n = m[0]
         gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
         # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-        line = str(gcp_long) + " " + str(gcp_lat) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
+        line = str(gcp_lat) + " " + str(gcp_long) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
                " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
 
         # write to file in unix systems
@@ -269,11 +269,24 @@ def aruco_detect():
 
 
 def write_gcp_file_header():
-    header = "WGS84\n"
+
+    f = open("/Users/octaviojardim/Desktop/teste_upload_coord.txt", 'r')
+
+    header = f.readline()
+    f.close()
+
     gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
     f = open(gcp_file_location, 'w+')
     f.write(header)
     f.close()
+
+
+
+
+
+
+
+
 
 
 def save_images_to_folder(image_path):
