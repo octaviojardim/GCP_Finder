@@ -36,20 +36,26 @@ image_height = 0
 focal_length = 0
 horizontal_angle = 0
 altitude = 0
+gcp_found = 0
 
 
 def save_statistic(n, stage):
+    global gcp_found
     f = open('statistic.json', "r")
     data = json.load(f)
     f.close()
 
     if stage == "meta":
-        data["Processed"] = n
+        data["Processed"] = n + 1
         data["Total"] = total_images
 
     elif stage == "aruco":
-        data["Processed_aruco"] = n
+        data["Processed_aruco"] = n + 1
         data["Total_aruco"] = total_images
+
+    elif stage == "gcp_found":
+        gcp_found += 1
+        data["GCP_found"] = gcp_found
 
     f = open('statistic.json', "w")
     json.dump(data, f)
@@ -261,6 +267,7 @@ def aruco_detect():
                 pixels = [c[:, 0].mean()], [c[:, 1].mean()]
                 vec.append(pixels)
             addLine(vec, image_filename, ids)
+            save_statistic(1, "gcp_found")
         else:
             print("Marker not found in image", image_list[k])
         save_statistic(k, "aruco")
@@ -311,6 +318,8 @@ def run(margin, flag_save):
         image_list.append(filename)
 
     total_images = len(image_list)
+    save_statistic(-1, "meta")
+    save_statistic(-1, "aruco")
 
     with exiftool.ExifTool() as et:
         metadata = et.get_tags_batch(keywords, image_list)
