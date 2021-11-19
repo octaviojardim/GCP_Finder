@@ -15,28 +15,30 @@ from pygeodesy.sphericalNvector import LatLon
 # CONSTANTES
 lista_de_GCP_fixos = {}
 
-found = "Ponto de Controle encontrado"
-not_found = "Ponto de Controle NÃO encontrado"
-source_path = "/Users/octaviojardim/Desktop/source" + "/"
+found = "Ponto de Controle encontrado"  # controler
+not_found = "Ponto de Controle NÃO encontrado"  # controler
+source_path = "/Users/octaviojardim/Desktop/source2" + "/"
 save_path = "/Users/octaviojardim/Desktop/images_selected" + "/"
 keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
             "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF:GPSLatitudeRef",
-            "EXIF:GPSLongitudeRef"]
-output_lines = []
-images_with_gcp = []
-image_list = []
-img_with_gcp = 0
-border = 20  # search gcp in (1-border)% of the image, remove border% border around the image
-save_images = -1
-SENSOR_WIDTH = 0
-total_images = 0
-pitch_angle = 0
-image_width = 0
-image_height = 0
-focal_length = 0
-horizontal_angle = 0
-altitude = 0
-gcp_found = 0
+            "EXIF:GPSLongitudeRef"]  # controler
+
+images_with_gcp = []  # controler
+image_list = []  # controler
+img_with_gcp = 0  # statistic
+border = 20  # search gcp in (1-border)% of the image, remove border% border around the image #controler
+save_images = -1  # controler
+total_images = 0  # controler
+pitch_angle = 0  # image
+image_width = 0  # image
+image_height = 0  # image
+focal_length = 0  # image
+horizontal_angle = 0  # image
+altitude = 0  # image
+gcp_found = 0  # statistic
+SENSOR_WIDTH = 0  # controler
+
+# classe ground control point -> contem id e coordenadas e formato
 
 
 def save_statistic(n, stage):
@@ -63,6 +65,7 @@ def save_statistic(n, stage):
 
 
 def read_gcp_file():
+    global lista_de_GCP_fixos
     f = open("/Users/octaviojardim/Desktop/teste_upload_coord.txt", 'r')
     next(f)
     for ln in f:
@@ -214,23 +217,29 @@ def get_gcp_info(id__):
 
 
 def addLine(pixels, filename_, gcp_ids):
+    sucess = False
     im = os.path.split(filename_)
     img_name, img_extension = im[-1].split('.')
     s = 0
     for m in gcp_ids:
         n = m[0]
-        gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
-        # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-        line = str(gcp_lat) + " " + str(gcp_long) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
-               " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
+        try:
+            gcp_lat, gcp_long, gcp_alt = get_gcp_info(n)
+            # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
+            line = str(gcp_lat) + " " + str(gcp_long) + " " + str(gcp_alt) + " " + str(pixels[s][0][0]) + \
+                   " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
 
-        # write to file in unix systems
-        gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
-        f = open(gcp_file_location, 'a')
-        f.write(line)
-        f.close()
+            # write to file in unix systems
+            gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
+            f = open(gcp_file_location, 'a')
+            f.write(line)
+            f.close()
 
-        s = s + 1
+            s += 1
+            sucess = True
+        except KeyError:
+            print("Incorrect reading. Do not print.")
+        return sucess
 
 
 def aruco_detect():
@@ -260,14 +269,15 @@ def aruco_detect():
         parameters = aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         if ids is not None:
-            print("Marker found!")
-            marker_found = marker_found + 1
             for j in range(len(ids)):
                 c = corners[j][0]
                 pixels = [c[:, 0].mean()], [c[:, 1].mean()]
                 vec.append(pixels)
-            addLine(vec, image_filename, ids)
-            save_statistic(1, "gcp_found")
+            state = addLine(vec, image_filename, ids)
+            if state:
+                print("Marker found!", image_list[k])
+                marker_found = marker_found + 1
+                save_statistic(1, "gcp_found")
         else:
             print("Marker not found in image", image_list[k])
         save_statistic(k, "aruco")
@@ -276,7 +286,6 @@ def aruco_detect():
 
 
 def write_gcp_file_header():
-
     f = open("/Users/octaviojardim/Desktop/teste_upload_coord.txt", 'r')
 
     header = f.readline()
@@ -286,14 +295,6 @@ def write_gcp_file_header():
     f = open(gcp_file_location, 'w+')
     f.write(header)
     f.close()
-
-
-
-
-
-
-
-
 
 
 def save_images_to_folder(image_path):
@@ -312,6 +313,7 @@ def run(margin, flag_save):
     border = int(margin)
     save_images = int(flag_save)
     read_gcp_file()
+    print(lista_de_GCP_fixos)
 
     # upload all filenames
     for filename in glob.glob(source_path + '*'):
@@ -332,7 +334,8 @@ def run(margin, flag_save):
 
     if not missing:
         for i in range(0, total_images):
-
+            print("total_images:", total_images)
+            print("metadata:", len(metadata))
             current_image = metadata[i]
             print(current_image)
             SENSOR_WIDTH = get_drone_info(current_image)
