@@ -10,43 +10,47 @@ import exiftool
 import geopy.distance
 from cv2 import aruco
 from pygeodesy.sphericalNvector import LatLon
-
-from _GroundControlPoint import _GroundControlPoint
 from _Image import _Image
+from _GroundControlPoint import _GroundControlPoint
 from _Statistics import _Statistics
 
 
 class _Controller:
-    lista_de_GCP_fixos = {}
-    images_with_gcp = []
-    image_list = []
     found = "Ponto de Controle encontrado"
     not_found = "Ponto de Controle NÃO encontrado"
     keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
                 "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF"
                                                                                                  ":GPSLatitudeRef",
                 "EXIF:GPSLongitudeRef"]
-    save_images = -1
-    total_images = 0
-    SENSOR_WIDTH = 0
-    border = 0  # search gcp in (1-border)% of the image, remove border% border around the image
 
-    source_path = "/Users/octaviojardim/Desktop/source" + "/"
-    save_path = "/Users/octaviojardim/Desktop/images_selected" + "/"
-    missing = False
+    def __init__(self):
+        self.images_source_path = sys.argv[1]
+        self.coordinates_source_path = sys.argv[2]
+        self.border = int(sys.argv[3])  # search gcp in (1-border)% of the image, remove border% border around the image
+        self.save_gcp_path = os.path.dirname(os.path.abspath("_Controller.py"))  # sys.argv[4]
+        print("save_gcp_path:", self.save_gcp_path)
+        self.total_images = 0
+        self.SENSOR_WIDTH = 0
+        self.lista_de_GCP_fixos = {}
+        self.images_with_gcp = []
+        self.image_list = []
+        self.missing = False
+        self.save_images = 0
 
-    def __init__(self, margin, flag_save):
-        self.border = int(margin)
-        self.save_images = int(flag_save)
+        if len(sys.argv) < 4:
+            print('gcp_finder.py images_source_path coordinates_source_path border | [OPTIONAL] save_images_path')
+            sys.exit(1)
+        if len(sys.argv) == 5:
+            self.save_images = 1
+            self.save_images_path = sys.argv[4]
 
     def run(self):
-        start = time.time()
 
+        start = time.time()
         self.read_gcp_file()
-        print(self.lista_de_GCP_fixos)
 
         # upload all filenames
-        for filename in glob.glob(self.source_path + '*'):
+        for filename in glob.glob(self.images_source_path + '*'):
             self.image_list.append(filename)
 
         total_images = len(self.image_list)
@@ -57,7 +61,7 @@ class _Controller:
             metadata = et.get_tags_batch(self.keywords, self.image_list)
 
         for i in range(0, total_images):
-            print("meta", metadata[i])
+
             if len(metadata[i]) != 12 or self.check_metainfo(
                     metadata[i]) is False:  # Its required 12 specific parameters to process the gcp location
                 self.missing = True
@@ -157,11 +161,11 @@ class _Controller:
             try:
                 gcp = self.get_gcp_info(n)
                 # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-                line = str(gcp.get_lat()) + " " + str(gcp.get_long()) + " " + str(gcp.get_alt()) + " " + str(pixels[s][0][0]) + \
+                line = str(gcp.get_lat()) + " " + str(gcp.get_long()) + " " + str(gcp.get_alt()) + " " + str(
+                    pixels[s][0][0]) + \
                        " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
 
-                # write to file in unix systems
-                gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
+                gcp_file_location = self.save_gcp_path + "/gcp_list.txt"
                 f = open(gcp_file_location, 'a')
                 f.write(line)
                 f.close()
@@ -174,12 +178,8 @@ class _Controller:
 
     def check_metainfo(self, metainfo):
         correct_meta = True
-
         for word in self.keywords:
-            print("word", word)
             if word not in metainfo:
-                print("não tem metainfo:", word)
-                print("metainfo", metainfo)
                 correct_meta = False
 
         return correct_meta
@@ -188,21 +188,22 @@ class _Controller:
         # guardar imagem numa pasta à parte
         img_ = os.path.split(image_path)
         img_name, img_extension = img_[-1].split('.')
-        shutil.copy(image_path, self.save_path + img_name + "." + img_extension)
+        shutil.copy(image_path, self.save_images_path + img_name + "." + img_extension)
 
     def write_gcp_file_header(self):
-        gcp_file_location = (os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')) + "/gcp_list.txt"
+        gcp_file_location = self.save_gcp_path + "/gcp_list.txt"
         f = open(gcp_file_location, 'w+')
         f.write(self.lista_de_GCP_fixos[0].get_format_())
         f.close()
 
     def read_gcp_file(self):
-        f = open("/Users/octaviojardim/Desktop/teste_upload_coord.txt", 'r')
+        f = open(self.coordinates_source_path, 'r')
         header = f.readline()
         for ln in f:
             line = ln.split()
             if len(line) > 0:
-                gcp = _GroundControlPoint(int(line[0]), float(line[2]), float(line[1]), float(line[3]), header)
+                gcp = _GroundControlPoint(int(line[0]), float(line[2]), float(line[1]),
+                                                              float(line[3]), header)
                 self.lista_de_GCP_fixos[gcp.get_id()] = gcp
 
     @staticmethod
@@ -242,7 +243,7 @@ class _Controller:
 
     @staticmethod
     def get_drone_info(model):
-        f = open('drones_DB.json')
+        f = open('app/static/drones_DB.json')
         data = json.load(f)
 
         return data[model]
@@ -272,13 +273,18 @@ class _Controller:
         latRef = meta['EXIF:GPSLatitudeRef']
         longRef = meta['EXIF:GPSLongitudeRef']
 
+        # avoid division by 0 -> if pitch_angle == 0, drone is looking to
+        if pitch_angle == 0:
+            pitch_angle = 0.000001
+
         if latRef == "S":
             lati = -lati
         elif longRef == "W":
             lon = -lon
 
-        return _Image(pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, filename, model,
-                      lati, lon)
+        return _Image(pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, filename,
+                             model,
+                             lati, lon)
 
     def get_gcp_info(self, id__):
         return self.lista_de_GCP_fixos[id__]
@@ -336,8 +342,3 @@ class _Controller:
         print("top_left", top_left.latitude, top_left.longitude)
 
         return top_right, bottom_right, bottom_left, top_left
-
-
-controler = _Controller(20, -1)
-
-controler.run()
