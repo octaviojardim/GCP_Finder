@@ -43,7 +43,7 @@ SENSOR_WIDTH = 0  # controler
 
 def save_statistic(n, stage):
     global gcp_found
-    f = open('statistic.json', "r")
+    f = open('statistics.json', "r")
     data = json.load(f)
     f.close()
 
@@ -59,7 +59,7 @@ def save_statistic(n, stage):
         gcp_found += 1
         data["GCP_found"] = gcp_found
 
-    f = open('statistic.json', "w")
+    f = open('statistics.json', "w")
     json.dump(data, f)
     f.close()
 

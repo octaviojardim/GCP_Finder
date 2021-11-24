@@ -24,11 +24,8 @@ class _Controller:
                 "EXIF:GPSLongitudeRef"]
 
     def __init__(self):
-        self.images_source_path = sys.argv[1]
-        self.coordinates_source_path = sys.argv[2]
-        self.border = int(sys.argv[3])  # search gcp in (1-border)% of the image, remove border% border around the image
-        self.save_gcp_path = os.path.dirname(os.path.abspath("_Controller.py"))  # sys.argv[4]
-        print("save_gcp_path:", self.save_gcp_path)
+
+        self.save_gcp_path = os.path.dirname(os.path.abspath("_Controller.py"))
         self.total_images = 0
         self.SENSOR_WIDTH = 0
         self.lista_de_GCP_fixos = {}
@@ -38,11 +35,18 @@ class _Controller:
         self.save_images = 0
 
         if len(sys.argv) < 4:
-            print('gcp_finder.py images_source_path coordinates_source_path border | [OPTIONAL] save_images_path')
+            print(
+                'Usage: python _Controller.py images_source_path coordinates_source_path border | [OPTIONAL] save_images_path')
             sys.exit(1)
         if len(sys.argv) == 5:
             self.save_images = 1
-            self.save_images_path = sys.argv[4]
+            # add '/' in the end of path if it's not present
+            self.save_images_path = sys.argv[4] + "/" if sys.argv[4][-1] != "/" else sys.argv[4]
+
+        self.images_source_path = sys.argv[1] + "/" if sys.argv[1][-1] != "/" else sys.argv[1]
+
+        self.coordinates_source_path = sys.argv[2]
+        self.border = int(sys.argv[3])  # search gcp in (1-border)% of the image, remove border% border around the image
 
     def run(self):
 
@@ -65,10 +69,6 @@ class _Controller:
             if len(metadata[i]) != 12 or self.check_metainfo(
                     metadata[i]) is False:  # Its required 12 specific parameters to process the gcp location
                 self.missing = True
-
-        if self.save_images == 1:
-            for i in range(0, total_images):
-                self.save_images_to_folder(metadata[i]["SourceFile"])
 
         if not self.missing:
             for i in range(0, total_images):
@@ -144,6 +144,8 @@ class _Controller:
                     print("Marker found!", self.image_list[k])
                     marker_found = marker_found + 1
                     stats.save_statistic(1, "gcp_found")
+                    if self.save_images == 1:
+                        self.save_images_to_folder(image_filename)
             else:
                 print("Marker not found in image", self.image_list[k])
 
@@ -203,7 +205,7 @@ class _Controller:
             line = ln.split()
             if len(line) > 0:
                 gcp = _GroundControlPoint(int(line[0]), float(line[2]), float(line[1]),
-                                                              float(line[3]), header)
+                                          float(line[3]), header)
                 self.lista_de_GCP_fixos[gcp.get_id()] = gcp
 
     @staticmethod
@@ -283,8 +285,8 @@ class _Controller:
             lon = -lon
 
         return _Image(pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, filename,
-                             model,
-                             lati, lon)
+                      model,
+                      lati, lon)
 
     def get_gcp_info(self, id__):
         return self.lista_de_GCP_fixos[id__]
@@ -342,3 +344,7 @@ class _Controller:
         print("top_left", top_left.latitude, top_left.longitude)
 
         return top_right, bottom_right, bottom_left, top_left
+
+
+control = _Controller()
+control.run()
