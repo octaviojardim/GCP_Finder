@@ -243,7 +243,7 @@ class _Controller:
 
     @staticmethod
     def get_drone_info(model):
-        f = open('app/static/drones_DB.json')
+        f = open('drones_DB.json')
         data = json.load(f)
 
         return data[model]

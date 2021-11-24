@@ -3,7 +3,7 @@ import json
 
 class _Statistics:
 
-    STAT = "app/static/statistics.json"
+    STAT = "statistics.json"
 
     def __init__(self, total_images):
         self.total_images = total_images
