@@ -356,5 +356,6 @@ class GCPFinder:
         return top_right, bottom_right, bottom_left, top_left
 
 
-gcpf = GCPFinder()
-gcpf.run()
+if __name__ == '__main__':
+    gcp = GCPFinder()
+    gcp.run()
