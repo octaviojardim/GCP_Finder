@@ -1,6 +1,6 @@
 
 
-class _Image:
+class Image_:
 
     drone_model = ""
 
@@ -12,7 +12,7 @@ class _Image:
         self.focal_length = focal_length
         self.horizontal_angle = horizontal_angle
         self.altitude = altitude
-        _Image.drone_model = drone_model
+        Image_.drone_model = drone_model
         self.filename = filename
         self.latitude = latitude
         self.longitude = longitude
@@ -40,7 +40,7 @@ class _Image:
 
     @staticmethod
     def get_drone_model():
-        return _Image.drone_model
+        return Image_.drone_model
 
     def get_latitude(self):
         return self.latitude

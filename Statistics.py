@@ -1,7 +1,7 @@
 import json
 
 
-class _Statistics:
+class Statistics:
 
     STAT = "statistics.json"
 
@@ -13,7 +13,7 @@ class _Statistics:
 
     def save_statistic(self, n, stage):
 
-        f = open(_Statistics.STAT, "r")
+        f = open(Statistics.STAT, "r")
         data = json.load(f)
         f.close()
 
@@ -32,13 +32,13 @@ class _Statistics:
             self.gcp_found += n
             data["GCP_found"] = self.gcp_found
 
-        f = open(_Statistics.STAT, "w")
+        f = open(Statistics.STAT, "w")
         json.dump(data, f)
         f.close()
 
     @staticmethod
     def init():
-        f = open(_Statistics.STAT, "r")
+        f = open(Statistics.STAT, "r")
         data = json.load(f)
         f.close()
         data["Processed"] = 0
@@ -47,17 +47,17 @@ class _Statistics:
         data["Processed_aruco"] = 0
         data["Total_aruco"] = 0
         data["GCP_found"] = 0
-        f = open(_Statistics.STAT, "w")
+        f = open(Statistics.STAT, "w")
         json.dump(data, f)
         f.close()
 
     @staticmethod
     def update_aruco(value):
-        f = open(_Statistics.STAT, "r")
+        f = open(Statistics.STAT, "r")
         data = json.load(f)
         f.close()
         data["Total_aruco"] = value
-        f = open(_Statistics.STAT, "w")
+        f = open(Statistics.STAT, "w")
         json.dump(data, f)
         f.close()
 

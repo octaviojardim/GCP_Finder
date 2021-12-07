@@ -1,4 +1,4 @@
-class _GroundControlPoint:
+class GroundControlPoint:
     format_ = ""
 
     def __init__(self, id_, lat, long, alt, format_):
@@ -6,7 +6,7 @@ class _GroundControlPoint:
         self.lat = lat
         self.long = long
         self.alt = alt
-        _GroundControlPoint.format_ = format_
+        GroundControlPoint.format_ = format_
 
     def get_id(self):
         return self.id_
@@ -22,4 +22,4 @@ class _GroundControlPoint:
 
     @staticmethod
     def get_format_():
-        return _GroundControlPoint.format_
+        return GroundControlPoint.format_

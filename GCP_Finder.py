@@ -8,14 +8,15 @@ import glob
 import shutil
 import exiftool
 import geopy.distance
+from PIL import Image, ImageDraw
 from cv2 import aruco
 from pygeodesy.sphericalNvector import LatLon
-from _Image import _Image
-from _GroundControlPoint import _GroundControlPoint
-from _Statistics import _Statistics
+from Image_ import Image_
+from GroundControlPoint import GroundControlPoint
+from Statistics import Statistics
 
 
-class _Controller:
+class GCPFinder:
     found = "Ponto de Controle encontrado"
     not_found = "Ponto de Controle NÃO encontrado"
     keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
@@ -25,7 +26,7 @@ class _Controller:
 
     def __init__(self):
 
-        self.save_gcp_path = os.path.dirname(os.path.abspath("_Controller.py"))
+        self.save_gcp_path = os.path.dirname(os.path.abspath("GCP_Finder.py"))
         self.total_images = 0
         self.SENSOR_WIDTH = 0
         self.lista_de_GCP_fixos = {}
@@ -36,7 +37,7 @@ class _Controller:
 
         if len(sys.argv) < 4:
             print(
-                'Usage: python _Controller.py images_source_path coordinates_source_path border | [OPTIONAL] save_images_path')
+                'Usage: python GCP_Finder.py images_source_path coordinates_source_path border | [OPTIONAL] save_images_path')
             sys.exit(1)
         if len(sys.argv) == 5:
             self.save_images = 1
@@ -59,7 +60,7 @@ class _Controller:
 
         total_images = len(self.image_list)
 
-        stats = _Statistics(total_images)
+        stats = Statistics(total_images)
 
         with exiftool.ExifTool() as et:
             metadata = et.get_tags_batch(self.keywords, self.image_list)
@@ -80,7 +81,7 @@ class _Controller:
                 print("current image:", current_image)
                 print("Initial coordinates:", current_image.get_latitude(), current_image.get_longitude())
 
-                self.SENSOR_WIDTH = self.get_drone_info(_Image.get_drone_model())
+                self.SENSOR_WIDTH = self.get_drone_info(Image_.get_drone_model())
 
                 if self.SENSOR_WIDTH == 0:
                     sys.exit("Sensor Width is 0")
@@ -204,16 +205,20 @@ class _Controller:
         for ln in f:
             line = ln.split()
             if len(line) > 0:
-                gcp = _GroundControlPoint(int(line[0]), float(line[2]), float(line[1]),
-                                          float(line[3]), header)
+                gcp = GroundControlPoint(int(line[0]), float(line[2]), float(line[1]),
+                                         float(line[3]), header)
                 self.lista_de_GCP_fixos[gcp.get_id()] = gcp
 
     @staticmethod
     def get_border_scale(b):
         if type(b) not in [int, float]:
             raise TypeError("The border percentage has to be an int or float")
-        if b <= 0:
+        if b < 0:
             raise TypeError("The border percentage has to be positive")
+        if b >= 100:
+            raise TypeError("The border percentage cannot be equal or greater than 100%")
+        elif b == 0:
+            return 1
         img_without_border = abs((b / 100) - 1)
         scale_raw = math.sqrt(img_without_border)
         scale = (abs(scale_raw - 1)) / 2
@@ -221,6 +226,8 @@ class _Controller:
 
     def get_distance_to_corners(self, image):
         border_estimated = self.get_border_scale(self.border)
+
+        print("border_estimated:", border_estimated)
 
         ground_sample_distance = (image.get_altitude() * self.SENSOR_WIDTH) / (
                 image.get_focal_length() * image.get_image_width())  # m/pixel
@@ -232,10 +239,12 @@ class _Controller:
 
         final_distance = dist * ground_sample_distance  # real distance in meters
 
+        print("final_distance:", final_distance)
+
         # DRAW TOP LEFT AND RIGHT CORNERS IN IMAGE
         # shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
-        # shape2 = [image_width - (int(p[0]) - 2), int(p[1]) - 2, image_width - (int(p[0]) + 2), int(p[1]) + 2]
-        # img = Image.open(image_list[0])
+        # shape2 = [image.get_image_width() - (int(p[0]) - 2), int(p[1]) - 2, image.get_image_width() - (int(p[0]) + 2), int(p[1]) + 2]
+        # img = Image.open(self.image_list[0])
         # img1 = ImageDraw.Draw(img)
         # img1.rectangle(shape, fill="#ffff33", outline="red")
         # img1.rectangle(shape2, fill="#ffff33", outline="red")
@@ -284,7 +293,7 @@ class _Controller:
         elif longRef == "W":
             lon = -lon
 
-        return _Image(pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, filename,
+        return Image_(pitch_angle, image_width, image_height, focal_length, horizontal_angle, altitude, filename,
                       model,
                       lati, lon)
 
@@ -293,7 +302,8 @@ class _Controller:
 
     # recebe as coordenadas gps do ponto focal da imagem e a imagem em questão
     def is_gcp_nearby(self, centerCoord, img, stats):
-        top_right, bottom_right, bottom_left, top_left = self.get_corner_coodinates(img, centerCoord[0], centerCoord[1])
+        top_right, bottom_right, bottom_left, top_left = self.get_corner_coordinates(img, centerCoord[0],
+                                                                                     centerCoord[1])
 
         image_path = img.get_filename()
         find = False
@@ -306,7 +316,7 @@ class _Controller:
 
             if p.isenclosedBy(b):
                 find = True
-                print("gco found inside image")
+                print("gcp found inside image")
                 stats.save_statistic(1, "contains_gcp")
                 self.images_with_gcp.append(image_path)
 
@@ -315,7 +325,7 @@ class _Controller:
         else:
             return self.not_found
 
-    def get_corner_coodinates(self, img, centerLat, centerLong):
+    def get_corner_coordinates(self, img, centerLat, centerLong):
         angle = math.atan((img.get_image_width() / 2) / (img.get_image_height() / 2)) * (180.0 / math.pi)
 
         NE = angle  # starting from North which is 0
@@ -346,5 +356,5 @@ class _Controller:
         return top_right, bottom_right, bottom_left, top_left
 
 
-control = _Controller()
-control.run()
+gcpf = GCPFinder()
+gcpf.run()
