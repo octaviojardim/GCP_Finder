@@ -357,5 +357,5 @@ class GCPFinder:
 
 
 if __name__ == '__main__':
-    gcp = GCPFinder()
-    gcp.run()
+    finder = GCPFinder()
+    finder.run()
