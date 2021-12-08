@@ -1,2 +1,4 @@
 venv/
 test_gcp_finder.py
+gcp_list.txt
+gcp_finder_functions.py
