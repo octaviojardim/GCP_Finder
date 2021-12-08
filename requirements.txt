@@ -3,4 +3,3 @@ opencv_contrib_python==4.5.3.56
 Pillow~=8.3.2
 PyExifTool==0.4.11
 PyGeodesy==21.9.21
-opencv-python~=4.5.3.56
