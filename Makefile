@@ -1,7 +1,19 @@
 SHELL := /usr/bin/bash
+
+.ONESHELL:
+
+.PHONY: install
 install:
 	python3 -m venv venv
 	./venv/bin/pip install -r ./requirements.txt
-	sudo apt install libimage-exiftool-perl
-activate:
+	apt install exiftool
+
+run:
 	source ./venv/bin/activate
+	flask run
+
+clean:
+	rm -r env
+
+
+
