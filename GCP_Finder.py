@@ -15,6 +15,8 @@ from Image_ import Image_
 from GroundControlPoint import GroundControlPoint
 from Statistics import Statistics
 
+import matplotlib.pyplot as plt
+
 
 class GCPFinder:
     found = "Ponto de Controle encontrado"
@@ -106,6 +108,34 @@ class GCPFinder:
         end = time.time()
         print("Elapsed time", round(end - start, 1), "s")
 
+    @staticmethod
+    def get_center_point(corners):
+        topLeft = corners[0]
+        topRight = corners[1]
+        bottomRight = corners[2]
+        bottomLeft = corners[3]
+
+        line1 = (topLeft, bottomRight)
+        line2 = (bottomLeft, topRight)
+
+        xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+        ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+
+        def det(a, b):
+            return a[0] * b[1] - a[1] * b[0]
+
+        div = det(xdiff, ydiff)
+        if div == 0:
+            raise Exception('lines do not intersect')
+
+        d = (det(*line1), det(*line2))
+        x = det(d, xdiff) / div
+        y = det(d, ydiff) / div
+
+        plt.plot(x, y, ".", color='Red')
+
+        return [x], [y]
+
     def aruco_detect(self, stats):
         marker_found = 0
 
@@ -131,15 +161,54 @@ class GCPFinder:
             frame = cv2.imread(image_filename)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+            # kernel = np.ones((3, 3), np.uint8)
+            # low_rgb = np.array([100, 100, 100])
+            # high_rgb = np.array([255, 255, 255])
+            # black_white = cv2.inRange(frame, low_rgb, high_rgb)
+            # closing = cv2.morphologyEx(black_white, cv2.MORPH_CLOSE, kernel)
+            # opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
+
             # Dictionary with 16 bits markers and ids from 0 to 49
             aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
             parameters = aruco.DetectorParameters_create()
+
+            parameters.cornerRefinementMaxIterations = 80
+            parameters.cornerRefinementMethod = 1
+            parameters.polygonalApproxAccuracyRate = 0.05
+            parameters.cornerRefinementWinSize = 20
+            parameters.cornerRefinementMinAccuracy = 0.05
+            parameters.perspectiveRemovePixelPerCell = 8
+            parameters.maxErroneousBitsInBorderRate = 0.04
+            parameters.adaptiveThreshWinSizeStep = 5  # alterei
+            parameters.adaptiveThreshWinSizeMax = 23
+            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.4  # alterei
+            parameters.minMarkerPerimeterRate = 0.01  # alterei
+
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+
+            dummy = gray.copy()
+            # for rejected in rejectedImgPoints:
+            #    rejected = rejected.reshape((4, 2))
+            #    cv2.line(dummy, tuple(rejected[0]), tuple(rejected[1]), (0, 0, 255), thickness=2)
+            #    cv2.line(dummy, tuple(rejected[1]), tuple(rejected[2]), (0, 0, 255), thickness=2)
+            #    cv2.line(dummy, tuple(rejected[2]), tuple(rejected[3]), (0, 0, 255), thickness=2)
+            #    cv2.line(dummy, tuple(rejected[3]), tuple(rejected[0]), (0, 0, 255), thickness=2)
+
+            # newwwwww
+            # dummy2 = aruco.drawDetectedMarkers(dummy, rejectedImgPoints, ids)
+            # frame_markers = aruco.drawDetectedMarkers(dummy, corners, ids)
+            plt.figure()
+            # plt.imshow(frame_markers)
+
             if ids is not None:
                 for j in range(len(ids)):
                     c = corners[j][0]
-                    pixels = [c[:, 0].mean()], [c[:, 1].mean()]
-                    vec.append(pixels)
+                    center_point = self.get_center_point(c)
+
+                    plt.imshow(dummy)
+                    plt.show()
+
+                    vec.append(center_point)
                 state = self.addLine(vec, image_filename, ids)
                 if state:
                     print("Marker found!", self.image_list[k])
@@ -176,7 +245,7 @@ class GCPFinder:
                 s += 1
                 sucess = True
             except KeyError:
-                print("Incorrect reading. Do not print.")
+                print("Incorrect reading. Do not print." + " ID->", n, "on " + img_name)
             return sucess
 
     def check_metainfo(self, metainfo):
@@ -318,7 +387,8 @@ class GCPFinder:
                 find = True
                 print("gcp found inside image")
                 stats.save_statistic(1, "contains_gcp")
-                self.images_with_gcp.append(image_path)
+                if image_path not in self.images_with_gcp:
+                    self.images_with_gcp.append(image_path)
 
         if find:
             return self.found
