@@ -8,10 +8,6 @@ install:
 	./venv/bin/pip install -r ./requirements.txt
 	apt install exiftool
 
-run:
-	source ./venv/bin/activate
-	flask run
-
 clean:
 	rm -r env
 

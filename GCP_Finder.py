@@ -62,6 +62,9 @@ class GCPFinder:
 
         total_images = len(self.image_list)
 
+        if total_images == 0:
+            sys.exit("Images directory is empty.")
+
         stats = Statistics(total_images)
 
         with exiftool.ExifTool() as et:
@@ -125,8 +128,10 @@ class GCPFinder:
             return a[0] * b[1] - a[1] * b[0]
 
         div = det(xdiff, ydiff)
+
         if div == 0:
-            raise Exception('lines do not intersect')
+            print("Lines do not intersect.")
+            return [-1], [-1]
 
         d = (det(*line1), det(*line2))
         x = det(d, xdiff) / div
@@ -154,12 +159,13 @@ class GCPFinder:
 
         print("number_of_images", number_of_images)
         for k in range(0, number_of_images):
+
             vec = []
             image_meta = meta[k]
             image_filename = image_meta["SourceFile"]
 
             frame = cv2.imread(image_filename)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # kernel = np.ones((3, 3), np.uint8)
             # low_rgb = np.array([100, 100, 100])
@@ -168,25 +174,35 @@ class GCPFinder:
             # closing = cv2.morphologyEx(black_white, cv2.MORPH_CLOSE, kernel)
             # opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
 
+            '''Experimentar LUT e depois gray com default parameters
+            LUT_IN = [0, 158, 216, 255]
+            LUT_OUT = [0, 22, 80, 176]
+            self.lut = np.interp(np.arange(0, 256), self.LUT_IN,
+                             self.LUT_OUT).astype(np.uint8)
+            tmp = cv2.LUT(frame, self.lut)
+            gray = cv2.cvtColor(tmp, cv2.COLOR_BGR2GRAY)
+            
+            '''
+
             # Dictionary with 16 bits markers and ids from 0 to 49
             aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
             parameters = aruco.DetectorParameters_create()
 
-            parameters.cornerRefinementMaxIterations = 80
-            parameters.cornerRefinementMethod = 1
-            parameters.polygonalApproxAccuracyRate = 0.05
-            parameters.cornerRefinementWinSize = 20
-            parameters.cornerRefinementMinAccuracy = 0.05
-            parameters.perspectiveRemovePixelPerCell = 8
-            parameters.maxErroneousBitsInBorderRate = 0.04
-            parameters.adaptiveThreshWinSizeStep = 5  # alterei
-            parameters.adaptiveThreshWinSizeMax = 23
-            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.4  # alterei
-            parameters.minMarkerPerimeterRate = 0.01  # alterei
+            parameters.cornerRefinementMaxIterations = 20#80
+            parameters.cornerRefinementMethod = 0#1
+            parameters.polygonalApproxAccuracyRate = 0.1#0.05
+            parameters.cornerRefinementWinSize = 5#20
+            parameters.cornerRefinementMinAccuracy =0.08 #0.05
+            parameters.perspectiveRemovePixelPerCell = 4#8
+            parameters.maxErroneousBitsInBorderRate = 0.04#0.02
+            parameters.adaptiveThreshWinSizeStep = 2  # alterei
+            parameters.adaptiveThreshWinSizeMax = 21#23
+            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.29#0.4  # alterei
+            parameters.minMarkerPerimeterRate = 0.01#0.008  # alterei
 
-            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
 
-            dummy = gray.copy()
+            dummy = frame.copy()
             # for rejected in rejectedImgPoints:
             #    rejected = rejected.reshape((4, 2))
             #    cv2.line(dummy, tuple(rejected[0]), tuple(rejected[1]), (0, 0, 255), thickness=2)
@@ -197,21 +213,24 @@ class GCPFinder:
             # newwwwww
             # dummy2 = aruco.drawDetectedMarkers(dummy, rejectedImgPoints, ids)
             # frame_markers = aruco.drawDetectedMarkers(dummy, corners, ids)
-            plt.figure()
+            # plt.figure()
             # plt.imshow(frame_markers)
 
             if ids is not None:
                 for j in range(len(ids)):
                     c = corners[j][0]
                     center_point = self.get_center_point(c)
-
-                    plt.imshow(dummy)
-                    plt.show()
+                    # pixels = [c[:, 0].mean()], [c[:, 1].mean()]
+                    # plt.imshow(dummy)
+                    # plt.show()
 
                     vec.append(center_point)
-                state = self.addLine(vec, image_filename, ids)
+                    state = False
+                if ([-1], [-1]) not in vec:
+                    state = self.addLine(vec, image_filename, ids)
+
                 if state:
-                    print("Marker found!", self.image_list[k])
+                    print("Marker found!", self.image_list[k], "id:", ids)
                     marker_found = marker_found + 1
                     stats.save_statistic(1, "gcp_found")
                     if self.save_images == 1:
@@ -269,7 +288,13 @@ class GCPFinder:
         f.close()
 
     def read_gcp_file(self):
-        f = open(self.coordinates_source_path, 'r')
+
+        try:
+            f = open(self.coordinates_source_path, 'r')
+        except OSError:
+            print("Could not open/read file:", self.coordinates_source_path)
+            sys.exit()
+
         header = f.readline()
         for ln in f:
             line = ln.split()
@@ -301,10 +326,12 @@ class GCPFinder:
         ground_sample_distance = (image.get_altitude() * self.SENSOR_WIDTH) / (
                 image.get_focal_length() * image.get_image_width())  # m/pixel
 
-        p = (image.get_image_width() * border_estimated), image.get_image_height() * border_estimated
+        # margem por lado (largura no [0] e altura no [1])
+        bor = (image.get_image_width() * border_estimated), image.get_image_height() * border_estimated
+
         center_point = image.get_image_width() / 2, image.get_image_height() / 2
 
-        dist = math.sqrt((center_point[0] - p[0]) ** 2 + (center_point[1] - p[1]) ** 2)  # distance in pixels
+        dist = math.sqrt((center_point[0] - bor[0]) ** 2 + (center_point[1] - bor[1]) ** 2)  # distance in pixels
 
         final_distance = dist * ground_sample_distance  # real distance in meters
 
@@ -318,6 +345,22 @@ class GCPFinder:
         # img1.rectangle(shape, fill="#ffff33", outline="red")
         # img1.rectangle(shape2, fill="#ffff33", outline="red")
         # img.show()
+
+        #retangulo branco com a margem
+        '''img = Image.open(self.image_list[0])
+        img1 = ImageDraw.Draw(img, "RGBA")
+
+        img1.rectangle([(0, 0), (image.get_image_width(), bor[1])], (255, 255, 255, 100))
+        img1.rectangle([(0, bor[1]+1), (bor[0], image.get_image_height())], (255, 255, 255, 100))
+        img1.rectangle(
+            [(bor[0]+1, image.get_image_height() - bor[1]), (image.get_image_width(), image.get_image_height())],
+            (255, 255, 255, 100))
+        img1.rectangle(
+            [(image.get_image_width() - bor[0], image.get_image_height() - bor[1]-1), (image.get_image_width(), bor[1]+1)],
+            (255, 255, 255, 100))
+        del img1
+        #img.show()
+        img.save('/Users/octaviojardim/Desktop/margem.png', 'PNG')'''
 
         return final_distance
 
@@ -396,6 +439,8 @@ class GCPFinder:
             return self.not_found
 
     def get_corner_coordinates(self, img, centerLat, centerLong):
+
+        # angle between the top and the right cornor of the image (it will be 45º if the image its a square)
         angle = math.atan((img.get_image_width() / 2) / (img.get_image_height() / 2)) * (180.0 / math.pi)
 
         NE = angle  # starting from North which is 0
