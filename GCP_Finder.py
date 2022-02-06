@@ -8,19 +8,16 @@ import glob
 import shutil
 import exiftool
 import geopy.distance
-from PIL import Image, ImageDraw
 from cv2 import aruco
 from pygeodesy.sphericalNvector import LatLon
 from Image_ import Image_
 from GroundControlPoint import GroundControlPoint
 from Statistics import Statistics
 
-import matplotlib.pyplot as plt
-
 
 class GCPFinder:
     found = "Ponto de Controle encontrado"
-    not_found = "Ponto de Controle NÃO encontrado"
+    not_found = "Ponto de Controle NAO encontrado na imagem"
     keywords = ["EXIF:Model", "MakerNotes:Yaw", "MakerNotes:CameraPitch", "XMP:RelativeAltitude", "File:ImageWidth",
                 "File:ImageHeight", "EXIF:FocalLength", "EXIF:GPSLatitude", "EXIF:GPSLongitude", "EXIF"
                                                                                                  ":GPSLatitudeRef",
@@ -77,14 +74,15 @@ class GCPFinder:
                 self.missing = True
 
         if not self.missing:
+
+            print("\nGPS information found!\n")
+            print("Proceding to search for images that probably have a GCP in it.\n")
+
             for i in range(0, total_images):
-                print("total_images:", total_images)
-                print("metadata:", len(metadata))
 
                 current_image = self.make_image(metadata[i])  # create a new instance of Class Image
 
-                print("current image:", current_image)
-                print("Initial coordinates:", current_image.get_latitude(), current_image.get_longitude())
+                print("Current image:", current_image.get_filename())
 
                 self.SENSOR_WIDTH = self.get_drone_info(Image_.get_drone_model())
 
@@ -98,53 +96,24 @@ class GCPFinder:
                 destination = geopy.distance.GeodesicDistance(kilometers=distance).destination(origin, current_image.
                                                                                                get_horizontal_angle())
                 lat2, lon2 = destination.latitude, destination.longitude
-                print("Final coordinates:", lat2, lon2)
 
-                # INFO:
-                print("Distancia projetada:", round(distance * 1000, 2), "m")
                 print(self.is_gcp_nearby((lat2, lon2), current_image, stats))
                 print()
                 stats.save_statistic(1, "meta")
+
+        else:
+            print("\nGPS information not found!\n")
+            print("Proceding to search for GCP in all images.\n")
 
         self.write_gcp_file_header()
         self.aruco_detect(stats)
         end = time.time()
         print("Elapsed time", round(end - start, 1), "s")
 
-    @staticmethod
-    def get_center_point(corners):
-        topLeft = corners[0]
-        topRight = corners[1]
-        bottomRight = corners[2]
-        bottomLeft = corners[3]
-
-        line1 = (topLeft, bottomRight)
-        line2 = (bottomLeft, topRight)
-
-        xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
-        ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
-
-        def det(a, b):
-            return a[0] * b[1] - a[1] * b[0]
-
-        div = det(xdiff, ydiff)
-
-        if div == 0:
-            print("Lines do not intersect.")
-            return [-1], [-1]
-
-        d = (det(*line1), det(*line2))
-        x = det(d, xdiff) / div
-        y = det(d, ydiff) / div
-
-        plt.plot(x, y, ".", color='Red')
-
-        return [x], [y]
-
     def aruco_detect(self, stats):
         marker_found = 0
 
-        # if there is metadata in the images, we search for gcp in the ones selected
+        # if there is metadata in the images, we search for gcps in the ones selected
         number_of_images = len(self.images_with_gcp)
         # if there isn't, we process every uploaded image
         if number_of_images == 0:
@@ -157,80 +126,45 @@ class GCPFinder:
             with exiftool.ExifTool() as met:
                 meta = met.get_tags_batch(self.keywords, self.images_with_gcp)
 
-        print("number_of_images", number_of_images)
         for k in range(0, number_of_images):
 
             vec = []
             image_meta = meta[k]
             image_filename = image_meta["SourceFile"]
+            state = False
 
             frame = cv2.imread(image_filename)
-            # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # kernel = np.ones((3, 3), np.uint8)
-            # low_rgb = np.array([100, 100, 100])
-            # high_rgb = np.array([255, 255, 255])
-            # black_white = cv2.inRange(frame, low_rgb, high_rgb)
-            # closing = cv2.morphologyEx(black_white, cv2.MORPH_CLOSE, kernel)
-            # opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
-
-            '''Experimentar LUT e depois gray com default parameters
-            LUT_IN = [0, 158, 216, 255]
-            LUT_OUT = [0, 22, 80, 176]
-            self.lut = np.interp(np.arange(0, 256), self.LUT_IN,
-                             self.LUT_OUT).astype(np.uint8)
-            tmp = cv2.LUT(frame, self.lut)
-            gray = cv2.cvtColor(tmp, cv2.COLOR_BGR2GRAY)
-            
-            '''
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # Dictionary with 16 bits markers and ids from 0 to 49
             aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
             parameters = aruco.DetectorParameters_create()
 
-            parameters.cornerRefinementMaxIterations = 20#80
-            parameters.cornerRefinementMethod = 0#1
-            parameters.polygonalApproxAccuracyRate = 0.1#0.05
-            parameters.cornerRefinementWinSize = 5#20
-            parameters.cornerRefinementMinAccuracy =0.08 #0.05
-            parameters.perspectiveRemovePixelPerCell = 4#8
-            parameters.maxErroneousBitsInBorderRate = 0.04#0.02
+            parameters.cornerRefinementMaxIterations = 20  # 80
+            parameters.cornerRefinementMethod = 0  # 1
+            parameters.polygonalApproxAccuracyRate = 0.1  # 0.05
+            parameters.cornerRefinementWinSize = 5  # 20
+            parameters.cornerRefinementMinAccuracy = 0.08  # 0.05
+            parameters.perspectiveRemovePixelPerCell = 4  # 8
+            parameters.maxErroneousBitsInBorderRate = 0.04  # 0.02
             parameters.adaptiveThreshWinSizeStep = 2  # alterei
-            parameters.adaptiveThreshWinSizeMax = 21#23
-            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.29#0.4  # alterei
-            parameters.minMarkerPerimeterRate = 0.01#0.008  # alterei
+            parameters.adaptiveThreshWinSizeMax = 21  # 23
+            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.29  # 0.4  # alterei
+            parameters.minMarkerPerimeterRate = 0.01  # 0.008  # alterei
 
-            corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-
-            dummy = frame.copy()
-            # for rejected in rejectedImgPoints:
-            #    rejected = rejected.reshape((4, 2))
-            #    cv2.line(dummy, tuple(rejected[0]), tuple(rejected[1]), (0, 0, 255), thickness=2)
-            #    cv2.line(dummy, tuple(rejected[1]), tuple(rejected[2]), (0, 0, 255), thickness=2)
-            #    cv2.line(dummy, tuple(rejected[2]), tuple(rejected[3]), (0, 0, 255), thickness=2)
-            #    cv2.line(dummy, tuple(rejected[3]), tuple(rejected[0]), (0, 0, 255), thickness=2)
-
-            # newwwwww
-            # dummy2 = aruco.drawDetectedMarkers(dummy, rejectedImgPoints, ids)
-            # frame_markers = aruco.drawDetectedMarkers(dummy, corners, ids)
-            # plt.figure()
-            # plt.imshow(frame_markers)
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray_frame, aruco_dict, parameters=parameters)
 
             if ids is not None:
                 for j in range(len(ids)):
                     c = corners[j][0]
-                    center_point = self.get_center_point(c)
-                    # pixels = [c[:, 0].mean()], [c[:, 1].mean()]
-                    # plt.imshow(dummy)
-                    # plt.show()
-
+                    center_point = [c[:, 0].mean()], [c[:, 1].mean()]
                     vec.append(center_point)
-                    state = False
+
                 if ([-1], [-1]) not in vec:
                     state = self.addLine(vec, image_filename, ids)
 
                 if state:
-                    print("Marker found!", self.image_list[k], "id:", ids)
+                    print("Marker found!", self.image_list[k])
                     marker_found = marker_found + 1
                     stats.save_statistic(1, "gcp_found")
                     if self.save_images == 1:
@@ -240,7 +174,7 @@ class GCPFinder:
 
             stats.save_statistic(1, "aruco")
 
-        print("Found", marker_found, "of", stats.get_total_images(), "markers")
+        print("\nFound", marker_found, "markers out of", stats.get_total_images(), "images uploaded.")
 
     def addLine(self, pixels, filename_, gcp_ids):
         sucess = False
@@ -264,7 +198,7 @@ class GCPFinder:
                 s += 1
                 sucess = True
             except KeyError:
-                print("Incorrect reading. Do not print." + " ID->", n, "on " + img_name)
+                print("Incorrect reading. Do not print." + " False identification with ID ->", n, "in " + img_name)
             return sucess
 
     def check_metainfo(self, metainfo):
@@ -276,7 +210,7 @@ class GCPFinder:
         return correct_meta
 
     def save_images_to_folder(self, image_path):
-        # guardar imagem numa pasta à parte
+        # guardar imagem numa pasta a parte
         img_ = os.path.split(image_path)
         img_name, img_extension = img_[-1].split('.')
         shutil.copy(image_path, self.save_images_path + img_name + "." + img_extension)
@@ -321,8 +255,6 @@ class GCPFinder:
     def get_distance_to_corners(self, image):
         border_estimated = self.get_border_scale(self.border)
 
-        print("border_estimated:", border_estimated)
-
         ground_sample_distance = (image.get_altitude() * self.SENSOR_WIDTH) / (
                 image.get_focal_length() * image.get_image_width())  # m/pixel
 
@@ -335,33 +267,6 @@ class GCPFinder:
 
         final_distance = dist * ground_sample_distance  # real distance in meters
 
-        print("final_distance:", final_distance)
-
-        # DRAW TOP LEFT AND RIGHT CORNERS IN IMAGE
-        # shape = [(int(p[0]) - 2, int(p[1]) - 2), (int(p[0]) + 2, int(p[1]) + 2)]
-        # shape2 = [image.get_image_width() - (int(p[0]) - 2), int(p[1]) - 2, image.get_image_width() - (int(p[0]) + 2), int(p[1]) + 2]
-        # img = Image.open(self.image_list[0])
-        # img1 = ImageDraw.Draw(img)
-        # img1.rectangle(shape, fill="#ffff33", outline="red")
-        # img1.rectangle(shape2, fill="#ffff33", outline="red")
-        # img.show()
-
-        #retangulo branco com a margem
-        '''img = Image.open(self.image_list[0])
-        img1 = ImageDraw.Draw(img, "RGBA")
-
-        img1.rectangle([(0, 0), (image.get_image_width(), bor[1])], (255, 255, 255, 100))
-        img1.rectangle([(0, bor[1]+1), (bor[0], image.get_image_height())], (255, 255, 255, 100))
-        img1.rectangle(
-            [(bor[0]+1, image.get_image_height() - bor[1]), (image.get_image_width(), image.get_image_height())],
-            (255, 255, 255, 100))
-        img1.rectangle(
-            [(image.get_image_width() - bor[0], image.get_image_height() - bor[1]-1), (image.get_image_width(), bor[1]+1)],
-            (255, 255, 255, 100))
-        del img1
-        #img.show()
-        img.save('/Users/octaviojardim/Desktop/margem.png', 'PNG')'''
-
         return final_distance
 
     @staticmethod
@@ -372,6 +277,7 @@ class GCPFinder:
         return data[model]
 
     def show_info(self, image):
+
         gsdW = (image.get_altitude() * self.SENSOR_WIDTH) / (
                 image.get_focal_length() * image.get_image_width())  # m/pixel
 
@@ -379,7 +285,7 @@ class GCPFinder:
         print("Sensor width: ", self.SENSOR_WIDTH, "m")
         print("Focal lenght: ", image.get_focal_length(), "m")
         print("Image width: ", image.get_image_width(), "px")
-        print("Ground Sample Distance: ", gsdW * 100, "cm/pixel")
+        print("Ground Sample Distance: ", round(gsdW * 100, 5), "cm/pixel")
 
     @staticmethod
     def make_image(meta):
@@ -387,7 +293,7 @@ class GCPFinder:
         image_width = meta["File:ImageWidth"]
         image_height = meta["File:ImageHeight"]
         focal_length = meta["EXIF:FocalLength"] / 1000  # mm to m
-        horizontal_angle = float(meta["MakerNotes:Yaw"])  # O yaw é calculado em sentido clockwise
+        horizontal_angle = float(meta["MakerNotes:Yaw"])  # O yaw e calculado em sentido clockwise
         altitude = float(meta["XMP:RelativeAltitude"][1:-1])  # raw altitude value
         filename = meta["SourceFile"]
         model = meta["EXIF:Model"]
@@ -396,7 +302,7 @@ class GCPFinder:
         latRef = meta['EXIF:GPSLatitudeRef']
         longRef = meta['EXIF:GPSLongitudeRef']
 
-        # avoid division by 0 -> if pitch_angle == 0, drone is looking to
+        # avoid division by 0 -> if pitch_angle == 0, drone is looking to horizon
         if pitch_angle == 0:
             pitch_angle = 0.000001
 
@@ -412,7 +318,7 @@ class GCPFinder:
     def get_gcp_info(self, id__):
         return self.lista_de_GCP_fixos[id__]
 
-    # recebe as coordenadas gps do ponto focal da imagem e a imagem em questão
+    # receive the gps coordinates of the focal point in the image and the image itself
     def is_gcp_nearby(self, centerCoord, img, stats):
         top_right, bottom_right, bottom_left, top_left = self.get_corner_coordinates(img, centerCoord[0],
                                                                                      centerCoord[1])
@@ -428,7 +334,6 @@ class GCPFinder:
 
             if p.isenclosedBy(b):
                 find = True
-                print("gcp found inside image")
                 stats.save_statistic(1, "contains_gcp")
                 if image_path not in self.images_with_gcp:
                     self.images_with_gcp.append(image_path)
@@ -440,7 +345,7 @@ class GCPFinder:
 
     def get_corner_coordinates(self, img, centerLat, centerLong):
 
-        # angle between the top and the right cornor of the image (it will be 45º if the image its a square)
+        # angle between the top and the right cornor of the image (it will be 45 degrees if the image its a square)
         angle = math.atan((img.get_image_width() / 2) / (img.get_image_height() / 2)) * (180.0 / math.pi)
 
         NE = angle  # starting from North which is 0
@@ -462,11 +367,6 @@ class GCPFinder:
                                                                                    img.get_horizontal_angle() + SW)
         top_left = geopy.distance.GeodesicDistance(kilometers=dist).destination(center_point_coord,
                                                                                 img.get_horizontal_angle() + NW)
-
-        print("top_right", top_right.latitude, top_right.longitude)
-        print("bottom_right", bottom_right.latitude, bottom_right.longitude)
-        print("bottom_left", bottom_left.latitude, bottom_left.longitude)
-        print("top_left", top_left.latitude, top_left.longitude)
 
         return top_right, bottom_right, bottom_left, top_left
 

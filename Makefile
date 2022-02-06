@@ -1,4 +1,4 @@
-SHELL := /usr/bin/bash
+SHELL := /bin/bash
 
 .ONESHELL:
 
@@ -10,6 +10,5 @@ install:
 
 clean:
 	rm -r env
-
 
 
