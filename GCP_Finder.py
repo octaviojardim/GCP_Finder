@@ -103,7 +103,7 @@ class GCPFinder:
 
         else:
             print("\nGPS information not found!\n")
-            print("Proceding to search for GCP in all images.\n")
+            print("Proceding to search for GCPs in all images.\n")
 
         self.write_gcp_file_header()
         self.aruco_detect(stats)
@@ -142,15 +142,15 @@ class GCPFinder:
 
             parameters.cornerRefinementMaxIterations = 20  # 80
             parameters.cornerRefinementMethod = 0  # 1
-            parameters.polygonalApproxAccuracyRate = 0.1  # 0.05
+            parameters.polygonalApproxAccuracyRate = 0.1 # 0.05
             parameters.cornerRefinementWinSize = 5  # 20
             parameters.cornerRefinementMinAccuracy = 0.08  # 0.05
             parameters.perspectiveRemovePixelPerCell = 4  # 8
             parameters.maxErroneousBitsInBorderRate = 0.04  # 0.02
             parameters.adaptiveThreshWinSizeStep = 2  # alterei
             parameters.adaptiveThreshWinSizeMax = 21  # 23
-            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.29  # 0.4  # alterei
-            parameters.minMarkerPerimeterRate = 0.01  # 0.008  # alterei
+            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.4  # alterei
+            parameters.minMarkerPerimeterRate = 0.008  # alterei
 
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray_frame, aruco_dict, parameters=parameters)
 
