@@ -281,11 +281,11 @@ class GCPFinder:
         gsdW = (image.get_altitude() * self.SENSOR_WIDTH) / (
                 image.get_focal_length() * image.get_image_width())  # m/pixel
 
-        print("Altitude: ", image.get_altitude(), "m")
-        print("Sensor width: ", self.SENSOR_WIDTH, "m")
-        print("Focal lenght: ", image.get_focal_length(), "m")
-        print("Image width: ", image.get_image_width(), "px")
-        print("Ground Sample Distance: ", round(gsdW * 100, 5), "cm/pixel")
+        print("Altitude:", image.get_altitude(), "m")
+        print("Sensor width:", self.SENSOR_WIDTH, "m")
+        print("Focal lenght:", image.get_focal_length(), "m")
+        print("Image width:", image.get_image_width(), "px")
+        print("Ground Sample Distance:", round(gsdW * 100, 5), "cm/pixel")
 
     @staticmethod
     def make_image(meta):
