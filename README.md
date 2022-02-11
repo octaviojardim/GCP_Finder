@@ -28,4 +28,4 @@ ser guardadas.
 O resultado final ("gcp_list.txt") é guardado na diretoria corrente. Assim, um exemplo
 de comando a executar seria:
 
-$ python GCP_Finder.py ./fotos/ gps_list.txt 20 ./resultado/ [options] opt1
+$ python GCP_Finder.py ./fotos/ gps_list.txt 20 ./resultado/
