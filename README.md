@@ -5,15 +5,22 @@ identifica o centro dos pontos de controlo nas imagens que foram selecionas na e
 Instruções de utilização:
 
 $ git clone https://github.com/octaviojardim/GCP_Finder
+
 $ cd GCP_Finder/
+
 $ make install
+
 $ source ./venv/bin/activate
+
 $ python GCP_Finder.py arg1 arg2 arg3 [options] opt1
 
 • arg1: Caminho para a pasta com as imagens a processar.
+
 • arg2: Caminho para o ficheiro de texto com a localização GPS dos pontos de controlo
 colocados no terreno.
+
 • arg3: Percentagem de borda a retirar de cada imagem.
+
 • opt1: Caso o utilizador queira guardar as imagens em que foram encontrados pontos
 de controlo, este deve indicar o caminho da pasta para onde estas imagens devem
 ser guardadas.
