@@ -140,17 +140,17 @@ class GCPFinder:
             aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
             parameters = aruco.DetectorParameters_create()
 
-            parameters.cornerRefinementMaxIterations = 20  # 80
-            parameters.cornerRefinementMethod = 0  # 1
-            parameters.polygonalApproxAccuracyRate = 0.1 # 0.05
-            parameters.cornerRefinementWinSize = 5  # 20
-            parameters.cornerRefinementMinAccuracy = 0.08  # 0.05
-            parameters.perspectiveRemovePixelPerCell = 4  # 8
-            parameters.maxErroneousBitsInBorderRate = 0.04  # 0.02
-            parameters.adaptiveThreshWinSizeStep = 2  # alterei
-            parameters.adaptiveThreshWinSizeMax = 21  # 23
-            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.4  # alterei
-            parameters.minMarkerPerimeterRate = 0.008  # alterei
+            parameters.cornerRefinementMaxIterations = 20
+            parameters.cornerRefinementMethod = 0
+            parameters.polygonalApproxAccuracyRate = 0.1
+            parameters.cornerRefinementWinSize = 5
+            parameters.cornerRefinementMinAccuracy = 0.08
+            parameters.perspectiveRemovePixelPerCell = 4
+            parameters.maxErroneousBitsInBorderRate = 0.04
+            parameters.adaptiveThreshWinSizeStep = 2
+            parameters.adaptiveThreshWinSizeMax = 21
+            parameters.perspectiveRemoveIgnoredMarginPerCell = 0.4
+            parameters.minMarkerPerimeterRate = 0.008
 
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray_frame, aruco_dict, parameters=parameters)
 
