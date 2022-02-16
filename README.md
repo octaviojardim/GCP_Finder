@@ -5,7 +5,7 @@ Este programa surgiu no âmbito de uma dissertação de Mestrado do Departamento
 
 
 O programa começa por separar as imagens que contêm um ponto de controlo daquelas que nâo contêm um ponto de controlo. Após essa operação, o programa 
-identifica o centro dos pontos de controlo nas imagens que foram selecionas e gera um ficheiro gcp_list.txt que irá conter a localização dos pontos de controlo em pixeis para cada imagem, já com o formato correto para ser utilizado como ficheiro de configuração no Open Drone Map.
+identifica o centro dos pontos de controlo nas imagens que foram selecionadas e gera um ficheiro gcp_list.txt que irá conter a localização dos pontos de controlo em pixeis para cada imagem, já com o formato correto para ser utilizado como ficheiro de configuração no Open Drone Map.
 
 Instruções de utilização:
 
