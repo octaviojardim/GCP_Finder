@@ -33,3 +33,5 @@ O resultado final ("gcp_list.txt") é guardado na diretoria corrente. Assim, um 
 de comando a executar seria:
 
 $ python GCP_Finder.py ./fotos/ gps_list.txt 20 ./fotos_selecionadas/
+
+FCT/UNL-LNEC
