@@ -1,5 +1,5 @@
 # GCP_Finder 
-O GCP Finder é um programa identifica Aruco Markers em imagens.
+O GCP Finder é um programa que identifica Aruco Markers em imagens.
 
 Este programa surgiu no âmbito de uma dissertação de Mestrado do Departamento de Informática da Faculdade de Ciência e Tecnologia da Universidade NOVA de Lisboa em colaboração com o Laboratório Nacional de Engenharia Civil, com o intuito de tornar o levantamento topográfico de estruturas de engenharia, nomeadamente barragens, mais prático, preciso e rápido.
 
