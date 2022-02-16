@@ -213,6 +213,7 @@ class GCPFinder:
         # guardar imagem numa pasta a parte
         img_ = os.path.split(image_path)
         img_name, img_extension = img_[-1].split('.')
+        os.makedirs(os.path.dirname(self.save_images_path), exist_ok=True)
         shutil.copy(image_path, self.save_images_path + img_name + "." + img_extension)
 
     def write_gcp_file_header(self):
