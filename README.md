@@ -32,7 +32,7 @@ ser guardadas.
 O resultado final ("gcp_list.txt") é guardado na diretoria corrente. Assim, um exemplo
 de comando a executar seria:
 
-$ python GCP_Finder.py ./fotos/ gps_list.txt 20 ./fotos_selecionadas/
+$ python GCP_Finder.py ./sample/ gps_coordinates.txt 20 ./fotos_selecionadas/
 
 Na pasta sample existem algumas imagens tiradas por um DJI Phantom 4 Pro que podem ser utilizadas para testes.
 
