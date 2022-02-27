@@ -233,8 +233,8 @@ class GCPFinder:
         header = f.readline()
         for ln in f:
             line = ln.split()
-            if len(line) > 0:
-                gcp = GroundControlPoint(int(line[0]), float(line[2]), float(line[1]),
+            if len(line) > 0:  # read in format ID Lat Long Alt
+                gcp = GroundControlPoint(int(line[0]), float(line[1]), float(line[2]),
                                          float(line[3]), header)
                 self.lista_de_GCP_fixos[gcp.get_id()] = gcp
 
