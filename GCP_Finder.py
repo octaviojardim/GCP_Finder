@@ -178,8 +178,8 @@ class GCPFinder:
 
     def addLine(self, pixels, filename_, gcp_ids):
         sucess = False
-        im = os.path.split(filename_)
-        img_name, img_extension = im[-1].split('.')
+        image_path = os.path.split(filename_)
+        img_name = image_path[-1]
         s = 0
         for m in gcp_ids:
             n = m[0]
