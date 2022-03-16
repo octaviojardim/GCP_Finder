@@ -186,7 +186,7 @@ class GCPFinder:
             try:
                 gcp = self.get_gcp_info(n)
                 # longitude, latitude, altitude, imagem_pixel_X, image_pixel_Y, image_name, gcp id
-                line = str(gcp.get_lat()) + " " + str(gcp.get_long()) + " " + str(gcp.get_alt()) + " " + str(
+                line = str(gcp.get_long()) + " " + str(gcp.get_lat()) + " " + str(gcp.get_alt()) + " " + str(
                     pixels[s][0][0]) + \
                        " " + str(pixels[s][1][0]) + " " + img_name + " " + str(n) + "\n"
 
