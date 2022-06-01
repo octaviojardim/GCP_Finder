@@ -219,7 +219,7 @@ class GCPFinder:
     def write_gcp_file_header(self):
         gcp_file_location = self.save_gcp_path + "/gcp_list.txt"
         f = open(gcp_file_location, 'w+')
-        f.write(self.lista_de_GCP_fixos[0].get_format_())
+        f.write(self.lista_de_GCP_fixos.get(next(iter(self.lista_de_GCP_fixos))).get_format_())
         f.close()
 
     def read_gcp_file(self):
