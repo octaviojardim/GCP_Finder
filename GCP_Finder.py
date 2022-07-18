@@ -131,7 +131,7 @@ class GCPFinder:
             vec = []
             image_meta = meta[k]
             image_filename = image_meta["SourceFile"]
-            state = False
+            markers_in_image = 0
 
             frame = cv2.imread(image_filename)
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -160,24 +160,26 @@ class GCPFinder:
                     center_point = [c[:, 0].mean()], [c[:, 1].mean()]
                     vec.append(center_point)
 
-                if ([-1], [-1]) not in vec:
-                    state = self.addLine(vec, image_filename, ids)
+                markers_in_image = self.addLine(vec, image_filename, ids)
 
-                if state:
-                    print("Marker found!", self.image_list[k])
-                    marker_found = marker_found + 1
-                    stats.save_statistic(1, "gcp_found")
+                if markers_in_image != 0:
+                    if markers_in_image == 1:
+                        print("Marker found!", image_filename)
+                    else:
+                        print("Markers found!", image_filename)
+                    marker_found = marker_found + markers_in_image
+                    stats.save_statistic(markers_in_image, "gcp_found")
                     if self.save_images == 1:
                         self.save_images_to_folder(image_filename)
             else:
-                print("Marker not found in image", self.image_list[k])
+                print("Marker not found in image", image_filename)
 
-            stats.save_statistic(1, "aruco")
+            stats.save_statistic(markers_in_image, "aruco")
 
         print("\nFound", marker_found, "markers out of", stats.get_total_images(), "images uploaded.")
 
     def addLine(self, pixels, filename_, gcp_ids):
-        sucess = False
+        sucess = 0
         image_path = os.path.split(filename_)
         img_name = image_path[-1]
         s = 0
@@ -196,10 +198,10 @@ class GCPFinder:
                 f.close()
 
                 s += 1
-                sucess = True
+                sucess += 1
             except KeyError:
                 print("Incorrect reading. Do not print." + " False identification with ID ->", n, "in " + img_name)
-            return sucess
+        return sucess
 
     def check_metainfo(self, metainfo):
         correct_meta = True
@@ -335,18 +337,18 @@ class GCPFinder:
 
             if p.isenclosedBy(b):
                 find = True
-                stats.save_statistic(1, "contains_gcp")
                 if image_path not in self.images_with_gcp:
                     self.images_with_gcp.append(image_path)
 
         if find:
+            stats.save_statistic(1, "contains_gcp")
             return self.found
         else:
             return self.not_found
 
     def get_corner_coordinates(self, img, centerLat, centerLong):
 
-        # angle between the top and the right cornor of the image (it will be 45 degrees if the image its a square)
+        # angle between the center and the right cornor of the image (it will be 45 degrees if the image its a square)
         angle = math.atan((img.get_image_width() / 2) / (img.get_image_height() / 2)) * (180.0 / math.pi)
 
         NE = angle  # starting from North which is 0
