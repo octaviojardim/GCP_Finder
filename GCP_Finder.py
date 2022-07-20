@@ -174,7 +174,7 @@ class GCPFinder:
             else:
                 print("Marker not found in image", image_filename)
 
-            stats.save_statistic(markers_in_image, "aruco")
+            stats.save_statistic(1, "aruco")
 
         print("\nFound", marker_found, "markers out of", stats.get_total_images(), "images uploaded.")
 
